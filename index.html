@@ -208,8 +208,8 @@ document.querySelectorAll('.legend').forEach(legend => {
     hoveredIdx = hIdx;
     items.forEach((it, i) => {
       const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
-      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
+      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
     });
     chartInstance.data.datasets.forEach((ds, i) => {
       if (i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 4; }
@@ -297,7 +297,7 @@ document.querySelectorAll('.legend').forEach(legend => {
           applyLegendStyles();
           item.style.color = 'rgba(0,0,0,.4)';
           const d = item.querySelector('.legend-dot');
-          if (d) { d.style.background = dotColors[idx]; d.style.opacity = '0.4'; }
+          if (d) { d.style.background = setOpacity(dotColors[idx], 0.4); d.style.opacity = ''; }
           const vis = new Set();
           chartInstance.data.datasets.forEach((ds, i) => {
             if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
@@ -314,7 +314,7 @@ document.querySelectorAll('.legend').forEach(legend => {
     if (hasSelection()) {
       items.forEach((it, i) => {
         const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
         else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
         else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
       });
@@ -327,8 +327,8 @@ document.querySelectorAll('.legend').forEach(legend => {
     } else {
       items.forEach((it, i) => {
         const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
-        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
       });
       chartInstance.data.datasets.forEach((ds, i) => {
         if (i === hIdx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
@@ -342,7 +342,7 @@ document.querySelectorAll('.legend').forEach(legend => {
   function applySelectedHoverNormal(hIdx) {
     items.forEach((it, i) => {
       const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
       else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
       else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
     });
@@ -371,7 +371,7 @@ document.querySelectorAll('.legend').forEach(legend => {
           // Show only hovered
           items.forEach((it, i) => {
             const d = it.querySelector('.legend-dot');
-            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
             else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
           });
           const vis = new Set([idx]);
@@ -395,7 +395,7 @@ document.querySelectorAll('.legend').forEach(legend => {
           items.forEach((it, i) => {
             const d = it.querySelector('.legend-dot');
             if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-            else if (i === idx) { it.style.color = 'rgba(0,0,0,.4)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.4'; } }
+            else if (i === idx) { it.style.color = 'rgba(0,0,0,.4)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.4); d.style.opacity = ''; } }
             else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
           });
           const vis = new Set();
