@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Dynamics by Category — Tooltips</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+@font-face{font-family:'YS Text';font-weight:400;src:url('https://yastatic.net/s3/home/fonts/ys/text/3.0/regular.woff2') format('woff2')}
+@font-face{font-family:'YS Text';font-weight:500;src:url('https://yastatic.net/s3/home/fonts/ys/text/3.0/medium.woff2') format('woff2')}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --font:'YS Text',-apple-system,sans-serif;
+  --bg:#f2f3f5;
+  --surface:#fff;
+  --border:rgba(0,0,0,.1);
+  --text:rgba(0,0,0,.85);
+}
+html{font-size:13px}
+body{font-family:var(--font);color:var(--text);background:var(--bg);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:32px}
+
+.card{
+  background:var(--surface);border-radius:8px;
+  padding:20px 24px;width:100%;max-width:800px;height:420px;
+  display:flex;flex-direction:column;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+.card-title{font-size:15px;font-weight:400;margin-bottom:12px;color:var(--text)}
+
+/* Legend */
+.legend{display:flex;gap:20px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.legend-item{
+  display:flex;align-items:center;gap:8px;font-size:13px;line-height:18px;
+  color:rgba(0,0,0,.5);cursor:pointer;position:relative;
+}
+.legend-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.legend.animating .legend-item{transition:color .3s ease}
+.legend.animating .legend-dot{transition:opacity .3s ease}
+.legend.fade-out .legend-item{transition:color .7s ease}
+.legend.fade-out .legend-dot{transition:opacity .7s ease}
+
+/* Action Tooltip */
+.action-tooltip{
+  position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:#4C4C4C;color:#fff;
+  padding:8px 12px;border-radius:6px;
+  font-size:13px;line-height:18px;font-weight:400;
+  white-space:nowrap;display:flex;align-items:center;gap:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,.2);
+  opacity:0;pointer-events:none;transition:opacity .15s;
+  z-index:200;
+}
+.action-tooltip.visible{opacity:1}
+.action-tooltip .keys{display:flex;align-items:center;gap:3px}
+.action-tooltip .key{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:0 5px;border:1px solid rgba(255,255,255,.1);border-radius:3px;
+  font-size:13px;line-height:18px;font-weight:400;color:#fff;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-title">Sales Dynamics by Category</div>
+  <div style="position:relative;width:100%;flex:1;min-height:0">
+    <canvas id="areaChart"></canvas>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3D97F2"></div>Central</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FF6A59"></div>East</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#7FD169"></div>South</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#FFB433"></div>West</div>
+  </div>
+</div>
+
+<script>
+const fontFamily='YS Text';
+Chart.defaults.animation.duration=300;
+Chart.defaults.animation.easing='easeOutQuart';
+Chart.defaults.transitions.active={animation:{duration:200,easing:'easeOutQuart'}};
+const gridColor='#f0f1f3';
+const tickColor='rgba(0,0,0,0.5)';
+const tickFont={size:11,family:'Lucida Grande',lineHeight:13/11,weight:'400'};
+
+const areaLabels=["Jan '15","Feb","Mar","Apr","May '15","Jun","Jul","Aug","Sep '15","Oct","Nov","Dec",
+  "Jan '16","Feb","Mar","Apr","May '16","Jun","Jul","Aug","Sep '16","Oct","Nov","Dec",
+  "Jan '17","Feb","Mar","Apr","May '17","Jun","Jul","Aug","Sep '17"];
+
+const central=[18000,12000,22000,9000,15000,25000,11000,19000,8000,27000,14000,20000,16000,10000,24000,13000,21000,7000,26000,15000,9000,23000,17000,11000,20000,14000,28000,10000,18000,22000,13000,25000,16000];
+const east=[14000,8000,19000,22000,10000,16000,6000,21000,13000,9000,24000,11000,17000,20000,7000,15000,23000,12000,8000,18000,25000,10000,14000,21000,9000,16000,12000,26000,15000,8000,20000,11000,17000];
+const south=[7000,12000,5000,15000,9000,4000,11000,8000,14000,6000,10000,16000,5000,13000,8000,11000,6000,15000,9000,4000,12000,7000,14000,10000,5000,13000,8000,11000,16000,6000,9000,14000,7000];
+const west=[10000,16000,8000,13000,20000,6000,17000,11000,15000,22000,9000,14000,7000,18000,12000,21000,8000,16000,10000,13000,19000,7000,15000,11000,22000,9000,17000,13000,6000,20000,14000,10000,18000];
+
+new Chart(document.getElementById('areaChart'),{
+  type:'line',
+  data:{
+    labels:areaLabels,
+    datasets:[
+      {label:'Central',data:central,backgroundColor:'rgba(61,151,242,.75)',borderColor:'#3D97F2',borderWidth:1.5,fill:'origin',tension:0,pointRadius:0,pointHoverRadius:3},
+      {label:'East',data:east,backgroundColor:'rgba(255,106,89,.75)',borderColor:'#FF6A59',borderWidth:1.5,fill:'-1',tension:0,pointRadius:0,pointHoverRadius:3},
+      {label:'South',data:south,backgroundColor:'rgba(127,209,105,.75)',borderColor:'#7FD169',borderWidth:1.5,fill:'-1',tension:0,pointRadius:0,pointHoverRadius:3},
+      {label:'West',data:west,backgroundColor:'rgba(255,180,51,.75)',borderColor:'#FFB433',borderWidth:1.5,fill:'-1',tension:0,pointRadius:0,pointHoverRadius:3},
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:'#313d4f',titleFont:{size:10,family:fontFamily},bodyFont:{size:10,family:fontFamily},
+      cornerRadius:4,padding:8,boxPadding:3
+    }},
+    scales:{
+      x:{stacked:true,grid:{color:gridColor,drawTicks:false},ticks:{font:tickFont,color:tickColor,maxTicksLimit:9,padding:6},border:{display:false}},
+      y:{stacked:true,min:0,grid:{color:gridColor,drawTicks:false},ticks:{font:tickFont,color:tickColor,padding:6,callback:v=>v>=1000?(v/1000)+'K':v},border:{display:false}}
+    }
+  }
+});
+
+// ─── LEGEND INTERACTION ───
+document.querySelectorAll('.legend').forEach(legend => {
+  const card = legend.closest('.card');
+  if (!card) return;
+  const canvas = card.querySelector('canvas');
+  if (!canvas) return;
+  const chartInstance = Chart.getChart(canvas);
+  if (!chartInstance) return;
+
+  const items = legend.querySelectorAll('.legend-item');
+  const originalBgColors = chartInstance.data.datasets.map(ds => ds.backgroundColor);
+  const originalBorderColors = chartInstance.data.datasets.map(ds => ds.borderColor);
+  const originalFills = chartInstance.data.datasets.map(ds => ds.fill);
+  const isStacked = chartInstance.options.scales?.y?.stacked;
+
+  function recalcFills(visibleSet) {
+    const datasets = chartInstance.data.datasets;
+    let prevVisible = -1;
+    datasets.forEach((ds, i) => {
+      if (visibleSet === null) {
+        if (isStacked) ds.fill = originalFills[i];
+        ds.hidden = false;
+      } else if (visibleSet.has(i)) {
+        if (isStacked) { ds.fill = prevVisible === -1 ? 'origin' : String(prevVisible); }
+        ds.hidden = false;
+        prevVisible = i;
+      } else {
+        if (isStacked) ds.fill = false;
+        ds.hidden = true;
+      }
+    });
+  }
+
+  function setOpacity(color, opacity) {
+    if (color.startsWith('rgba')) return color.replace(/,\s*[\d.]+\)/, ', ' + opacity + ')');
+    if (color.startsWith('#')) {
+      const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
+      return `rgba(${r},${g},${b},${opacity})`;
+    }
+    return color;
+  }
+
+  // Inject tooltip elements
+  items.forEach(item => {
+    const tip = document.createElement('div');
+    tip.className = 'action-tooltip';
+    tip.innerHTML = 'Убрать <span class="keys"><span class="key">&#8984;</span> + <span class="key">ЛКМ</span></span>';
+    item.appendChild(tip);
+  });
+
+  let tooltipShowTimer = null;
+  let tooltipHideTimer = null;
+  let addTooltipShown = false;
+
+  function hideAllTooltips() {
+    clearTimeout(tooltipShowTimer);
+    clearTimeout(tooltipHideTimer);
+    items.forEach(it => { const t = it.querySelector('.action-tooltip'); if (t) t.classList.remove('visible'); });
+  }
+
+  function showTooltip(item, label) {
+    if (!hasSelection()) return;
+    hideAllTooltips();
+    const tip = item.querySelector('.action-tooltip');
+    if (!tip) return;
+    tip.firstChild.textContent = label + ' ';
+    const isFastCase = label === 'Добавить' && !addTooltipShown;
+    const showDelay = isFastCase ? 50 : 700;
+    tooltipShowTimer = setTimeout(() => {
+      tip.classList.add('visible');
+      if (isFastCase) addTooltipShown = true;
+    }, showDelay);
+  }
+
+  function hideTooltip(item) {
+    const tip = item.querySelector('.action-tooltip');
+    if (!tip) return;
+    clearTimeout(tooltipShowTimer);
+    tooltipHideTimer = setTimeout(() => { tip.classList.remove('visible'); }, 50);
+  }
+
+  const dotColors = [];
+  items.forEach(item => { const dot = item.querySelector('.legend-dot'); dotColors.push(dot ? dot.style.background : ''); });
+
+  let selectedIdx = -1;
+  const selectedSet = new Set();
+  let emptySelection = false;
+  let hoveredIdx = -1;
+  let leaveTimer = null;
+
+  function applyHoverState(hIdx) {
+    legend.classList.add('animating');
+    hoveredIdx = hIdx;
+    items.forEach((it, i) => {
+      const d = it.querySelector('.legend-dot');
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+    });
+    chartInstance.data.datasets.forEach((ds, i) => {
+      if (i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 4; }
+      else { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
+    });
+    recalcFills(null);
+    chartInstance.update();
+  }
+
+  function clearHoverState() {
+    legend.classList.add('animating');
+    hoveredIdx = -1;
+    items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); it.style.color = ''; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } });
+    chartInstance.data.datasets.forEach((ds, i) => { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; });
+    recalcFills(null);
+    chartInstance.update();
+  }
+
+  function isSelected(i) { if (selectedSet.size > 0) return selectedSet.has(i); if (selectedIdx >= 0) return i === selectedIdx; return false; }
+  function hasSelection() { return selectedIdx >= 0 || selectedSet.size > 0 || emptySelection; }
+
+  function applyLegendStyles() {
+    items.forEach((it, i) => {
+      const dot = it.querySelector('.legend-dot');
+      if (hasSelection()) {
+        if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (dot) { dot.style.background = dotColors[i]; dot.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.3)'; if (dot) { dot.style.background = 'rgba(0,0,0,.15)'; dot.style.opacity = ''; } }
+      } else { it.style.color = ''; if (dot) { dot.style.background = dotColors[i]; dot.style.opacity = ''; } }
+    });
+  }
+
+  function applySelected() {
+    if (hasSelection()) {
+      const vis = new Set();
+      chartInstance.data.datasets.forEach((ds, i) => {
+        if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
+        else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+      });
+      recalcFills(vis);
+    } else {
+      chartInstance.data.datasets.forEach((ds, i) => { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; });
+      recalcFills(null);
+    }
+    applyLegendStyles();
+    chartInstance.update();
+  }
+
+  let cmdDown = false;
+  let cmdUsed = false;
+  let currentHoverIdx = -1;
+  let clickLocked = false;
+  document.addEventListener('keydown', e => { if (e.metaKey || e.ctrlKey) { cmdDown = true; cmdUsed = true; hideAllTooltips(); if (!clickLocked) reapplyHover(); }});
+  document.addEventListener('keyup', e => { if (!e.metaKey && !e.ctrlKey) { cmdDown = false; if (!clickLocked) reapplyHover(); }});
+
+  function reapplyHover() {
+    if (currentHoverIdx < 0) return;
+    const idx = currentHoverIdx;
+    const item = items[idx];
+    if (!item) return;
+    if (cmdDown) {
+      if (hasSelection()) { if (isSelected(idx)) applyInverseHover(idx); else applySelectedHoverNormal(idx); }
+      else applyInverseHover(idx);
+    } else {
+      if (hasSelection()) {
+        applyLegendStyles();
+        const dot = item.querySelector('.legend-dot');
+        item.style.color = 'rgba(0,0,0,.7)';
+        if (emptySelection) {
+          if (dot) { dot.style.background = dotColors[idx]; dot.style.opacity = '1'; }
+          const vis = new Set([idx]);
+          chartInstance.data.datasets.forEach((ds, i) => {
+            if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; }
+            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+          });
+          recalcFills(vis); chartInstance.update();
+        } else if (isSelected(idx)) { showTooltip(item, 'Убрать'); applySelected(); }
+        else { if (dot) dot.style.background = 'rgba(0,0,0,.25)'; showTooltip(item, 'Добавить'); applySelected(); }
+      } else applyHoverState(idx);
+    }
+  }
+
+  function applyInverseHover(hIdx) {
+    legend.classList.add('animating');
+    if (hasSelection()) {
+      items.forEach((it, i) => {
+        const d = it.querySelector('.legend-dot');
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+        else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+      });
+      const vis = new Set();
+      chartInstance.data.datasets.forEach((ds, i) => {
+        if (isSelected(i) && i !== hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
+        else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+      });
+      recalcFills(vis);
+    } else {
+      items.forEach((it, i) => {
+        const d = it.querySelector('.legend-dot');
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+      });
+      chartInstance.data.datasets.forEach((ds, i) => {
+        if (i === hIdx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
+        else { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; }
+      });
+      recalcFills(null);
+    }
+    chartInstance.update();
+  }
+
+  function applySelectedHoverNormal(hIdx) {
+    items.forEach((it, i) => {
+      const d = it.querySelector('.legend-dot');
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+      else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
+      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+    });
+    const vis = new Set();
+    chartInstance.data.datasets.forEach((ds, i) => {
+      if (isSelected(i) || i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
+      else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+    });
+    recalcFills(vis);
+    chartInstance.update();
+  }
+
+  items.forEach((item, idx) => {
+    item.addEventListener('mouseenter', () => {
+      clearTimeout(leaveTimer);
+      currentHoverIdx = idx;
+      if (cmdDown) {
+        hoveredIdx = idx;
+        if (hasSelection()) { if (isSelected(idx)) applyInverseHover(idx); else applySelectedHoverNormal(idx); }
+        else applyInverseHover(idx);
+        return;
+      }
+      if (hasSelection()) {
+        if (emptySelection) {
+          items.forEach((it, i) => {
+            const d = it.querySelector('.legend-dot');
+            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+          });
+          const vis = new Set([idx]);
+          chartInstance.data.datasets.forEach((ds, i) => {
+            if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; }
+            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+          });
+          recalcFills(vis); chartInstance.update();
+        } else if (isSelected(idx)) { applyLegendStyles(); item.style.color = 'rgba(0,0,0,.7)'; showTooltip(item, 'Убрать'); }
+        else { showTooltip(item, 'Добавить');
+          items.forEach((it, i) => {
+            const d = it.querySelector('.legend-dot');
+            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '1'; } }
+            else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = '0.3'; } }
+            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+          });
+          const vis = new Set([idx]);
+          chartInstance.data.datasets.forEach((ds, i) => {
+            if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 4; vis.add(i); }
+            else if (isSelected(i)) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.25); ds.borderColor = setOpacity(originalBorderColors[i], 0.4); ds.borderWidth = 1.5; vis.add(i); }
+            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+          });
+          recalcFills(vis); chartInstance.update();
+        }
+        return;
+      }
+      applyHoverState(idx);
+    });
+
+    item.addEventListener('mouseleave', () => {
+      currentHoverIdx = -1; clickLocked = false; hideTooltip(item);
+      leaveTimer = setTimeout(() => {
+        if (currentHoverIdx >= 0) return;
+        hoveredIdx = -1;
+        chartInstance.options.animation.duration = 700;
+        legend.classList.remove('animating'); legend.classList.add('fade-out');
+        if (hasSelection()) { applyLegendStyles(); applySelected(); } else clearHoverState();
+        setTimeout(() => { chartInstance.options.animation.duration = 300; legend.classList.remove('fade-out'); }, 750);
+      }, 80);
+    });
+
+    item.addEventListener('click', (e) => {
+      clearTimeout(leaveTimer);
+      chartInstance.options.animation.duration = 700;
+      legend.classList.remove('animating'); legend.classList.add('fade-out');
+      clickLocked = true;
+      hideAllTooltips();
+
+      if (e.metaKey || e.ctrlKey) {
+        if (!hasSelection()) {
+          emptySelection = false; selectedSet.clear(); selectedIdx = -1;
+          items.forEach((_, i) => { if (i !== idx) selectedSet.add(i); });
+          if (selectedSet.size === 1) { selectedIdx = [...selectedSet][0]; selectedSet.clear(); }
+        } else if (emptySelection) { emptySelection = false; selectedIdx = idx; }
+        else {
+          if (selectedIdx >= 0 && selectedSet.size === 0) { selectedSet.add(selectedIdx); selectedIdx = -1; }
+          if (selectedSet.has(idx)) selectedSet.delete(idx); else selectedSet.add(idx);
+          if (selectedSet.size === items.length) { selectedSet.clear(); selectedIdx = -1; emptySelection = false; }
+          else if (selectedSet.size === 1) { selectedIdx = [...selectedSet][0]; selectedSet.clear(); emptySelection = false; }
+          else if (selectedSet.size === 0) { selectedIdx = -1; emptySelection = true; }
+        }
+      } else {
+        const hadSelection = selectedIdx >= 0;
+        const prevIdx = selectedIdx;
+        selectedSet.clear(); emptySelection = false;
+        if (selectedIdx === idx) selectedIdx = -1; else selectedIdx = idx;
+      }
+
+      applySelected();
+      setTimeout(() => { chartInstance.options.animation.duration = 300; legend.classList.remove('fade-out'); }, 750);
+    });
+  });
+});
+</script>
+</body>
+</html>
