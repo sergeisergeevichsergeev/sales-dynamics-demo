@@ -84,7 +84,7 @@ body{font-family:var(--font);color:var(--text);background:var(--bg);min-height:1
 
 <script>
 const fontFamily='YS Text';
-Chart.defaults.animation = false;
+Chart.defaults.animation.duration = 0;
 const gridColor='#f0f1f3';
 const tickColor='rgba(0,0,0,0.5)';
 const tickFont={size:11,family:'Lucida Grande',lineHeight:13/11,weight:'400'};
@@ -417,8 +417,9 @@ document.querySelectorAll('.legend').forEach(legend => {
           chartInstance.data.datasets.forEach((ds, i) => { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; });
           recalcFills(null);
         }
-        chartInstance.update({duration: 700, easing: 'easeOutQuart'});
-        setTimeout(() => { legend.classList.remove('fade-out'); }, 750);
+        chartInstance.options.animation = {duration: 700, easing: 'easeOutQuart'};
+        chartInstance.update();
+        setTimeout(() => { chartInstance.options.animation = {duration: 0}; legend.classList.remove('fade-out'); }, 750);
       }, 80);
     });
 
