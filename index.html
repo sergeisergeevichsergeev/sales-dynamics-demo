@@ -311,7 +311,6 @@ document.querySelectorAll('.legend').forEach(legend => {
   }
 
   function applyInverseHover(hIdx) {
-    legend.classList.add('animating');
     if (hasSelection()) {
       items.forEach((it, i) => {
         const d = it.querySelector('.legend-dot');
@@ -361,6 +360,7 @@ document.querySelectorAll('.legend').forEach(legend => {
       clearTimeout(leaveTimer);
       currentHoverIdx = idx;
       hoveredIdx = idx;
+      if (hasSelection()) { legend.classList.remove('anim-hover', 'anim-leave'); }
       if (cmdDown) {
         if (hasSelection()) { if (isSelected(idx)) applyInverseHover(idx); else applySelectedHoverNormal(idx); }
         else applyInverseHover(idx);
@@ -422,8 +422,7 @@ document.querySelectorAll('.legend').forEach(legend => {
 
     item.addEventListener('click', (e) => {
       clearTimeout(leaveTimer);
-      chartInstance.options.animation.duration = 0;
-      legend.classList.remove('animating'); legend.classList.add('fade-out');
+      legend.classList.remove('anim-hover', 'anim-leave');
       clickLocked = true;
 
       if (e.metaKey || e.ctrlKey) {
@@ -448,7 +447,7 @@ document.querySelectorAll('.legend').forEach(legend => {
       }
 
       applySelected();
-      setTimeout(() => { chartInstance.options.animation.duration = 0; legend.classList.remove('fade-out'); }, 750);
+      setTimeout(() => { chartInstance.options.animation = {duration: 0}; }, 750);
     });
   });
 });
