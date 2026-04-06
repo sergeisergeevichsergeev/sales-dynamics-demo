@@ -75,10 +75,10 @@ body{font-family:var(--font);color:var(--text);background:var(--bg);min-height:1
     <canvas id="areaChart"></canvas>
   </div>
   <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#3D97F2"></div>Central</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#FF6A59"></div>East</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#7FD169"></div>South</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#FFB433"></div>West</div>
+    <div class="legend-item"><div class="legend-dot" style="background-color:#3D97F2"></div>Central</div>
+    <div class="legend-item"><div class="legend-dot" style="background-color:#FF6A59"></div>East</div>
+    <div class="legend-item"><div class="legend-dot" style="background-color:#7FD169"></div>South</div>
+    <div class="legend-item"><div class="legend-dot" style="background-color:#FFB433"></div>West</div>
   </div>
 </div>
 
@@ -193,7 +193,7 @@ document.querySelectorAll('.legend').forEach(legend => {
   }
 
   const dotColors = [];
-  items.forEach(item => { const dot = item.querySelector('.legend-dot'); dotColors.push(dot ? dot.style.background : ''); });
+  items.forEach(item => { const dot = item.querySelector('.legend-dot'); dotColors.push(dot ? dot.style.backgroundColor : ''); });
 
   let selectedIdx = -1;
   const selectedSet = new Set();
@@ -205,8 +205,8 @@ document.querySelectorAll('.legend').forEach(legend => {
     hoveredIdx = hIdx;
     items.forEach((it, i) => {
       const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
     });
     chartInstance.data.datasets.forEach((ds, i) => {
       if (i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 4; }
@@ -218,7 +218,7 @@ document.querySelectorAll('.legend').forEach(legend => {
 
   function clearHoverState() {
     hoveredIdx = -1;
-    items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); it.style.color = ''; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } });
+    items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); it.style.color = ''; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } });
     chartInstance.data.datasets.forEach((ds, i) => { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; });
     recalcFills(null);
     chartInstance.options.animation = {duration: 700, easing: 'easeOutQuart'};
@@ -233,9 +233,9 @@ document.querySelectorAll('.legend').forEach(legend => {
     items.forEach((it, i) => {
       const dot = it.querySelector('.legend-dot');
       if (hasSelection()) {
-        if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (dot) { dot.style.background = dotColors[i]; dot.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.3)'; if (dot) { dot.style.background = 'rgba(0,0,0,.15)'; dot.style.opacity = ''; } }
-      } else { it.style.color = ''; if (dot) { dot.style.background = dotColors[i]; dot.style.opacity = ''; } }
+        if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (dot) { dot.style.backgroundColor = dotColors[i]; dot.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.3)'; if (dot) { dot.style.backgroundColor = 'rgba(0,0,0,.15)'; dot.style.opacity = ''; } }
+      } else { it.style.color = ''; if (dot) { dot.style.backgroundColor = dotColors[i]; dot.style.opacity = ''; } }
     });
   }
 
@@ -276,7 +276,7 @@ document.querySelectorAll('.legend').forEach(legend => {
         const dot = item.querySelector('.legend-dot');
         item.style.color = 'rgba(0,0,0,.7)';
         if (emptySelection) {
-          if (dot) { dot.style.background = dotColors[idx]; dot.style.opacity = '1'; }
+          if (dot) { dot.style.backgroundColor = dotColors[idx]; dot.style.opacity = '1'; }
           const vis = new Set([idx]);
           chartInstance.data.datasets.forEach((ds, i) => {
             if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; }
@@ -289,7 +289,7 @@ document.querySelectorAll('.legend').forEach(legend => {
           applyLegendStyles();
           item.style.color = 'rgba(0,0,0,.4)';
           const d = item.querySelector('.legend-dot');
-          if (d) { d.style.background = setOpacity(dotColors[idx], 0.4); d.style.opacity = ''; }
+          if (d) { d.style.backgroundColor = setOpacity(dotColors[idx], 0.4); d.style.opacity = ''; }
           const vis = new Set();
           chartInstance.data.datasets.forEach((ds, i) => {
             if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
@@ -306,9 +306,9 @@ document.querySelectorAll('.legend').forEach(legend => {
     if (hasSelection()) {
       items.forEach((it, i) => {
         const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
-        else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
+        else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
       });
       const vis = new Set();
       chartInstance.data.datasets.forEach((ds, i) => {
@@ -319,8 +319,8 @@ document.querySelectorAll('.legend').forEach(legend => {
     } else {
       items.forEach((it, i) => {
         const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
+        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
+        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
       });
       chartInstance.data.datasets.forEach((ds, i) => {
         if (i === hIdx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
@@ -334,9 +334,9 @@ document.querySelectorAll('.legend').forEach(legend => {
   function applySelectedHoverNormal(hIdx) {
     items.forEach((it, i) => {
       const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-      else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+      else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
     });
     const vis = new Set();
     chartInstance.data.datasets.forEach((ds, i) => {
@@ -363,8 +363,8 @@ document.querySelectorAll('.legend').forEach(legend => {
           // Show only hovered
           items.forEach((it, i) => {
             const d = it.querySelector('.legend-dot');
-            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
           });
           const vis = new Set([idx]);
           chartInstance.data.datasets.forEach((ds, i) => {
@@ -386,9 +386,9 @@ document.querySelectorAll('.legend').forEach(legend => {
           // Inverse: selected stays full, hovered shows dimmed preview
           items.forEach((it, i) => {
             const d = it.querySelector('.legend-dot');
-            if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.background = dotColors[i]; d.style.opacity = ''; } }
-            else if (i === idx) { it.style.color = 'rgba(0,0,0,.4)'; if (d) { d.style.background = setOpacity(dotColors[i], 0.4); d.style.opacity = ''; } }
-            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.background = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+            if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+            else if (i === idx) { it.style.color = 'rgba(0,0,0,.4)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.4); d.style.opacity = ''; } }
+            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
           });
           const vis = new Set();
           chartInstance.data.datasets.forEach((ds, i) => {
