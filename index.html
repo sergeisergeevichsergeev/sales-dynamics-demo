@@ -205,22 +205,6 @@ document.querySelectorAll('.legend').forEach(legend => {
   let leaveTimer = null;
   let fadeAnim = null;
 
-  function applyHoverState(hIdx) {
-    if (fadeAnim) { cancelAnimationFrame(fadeAnim); fadeAnim = null; }
-    hoveredIdx = hIdx;
-    items.forEach((it, i) => {
-      const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
-    });
-    chartInstance.data.datasets.forEach((ds, i) => {
-      if (i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 4; }
-      else { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
-    });
-    recalcFills(null);
-    chartInstance.update('none');
-  }
-
   function parseColor(c) {
     if (c.startsWith('rgba')) { const m = c.match(/rgba\(\s*(\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/); return m ? [+m[1],+m[2],+m[3],+m[4]] : [0,0,0,1]; }
     if (c.startsWith('rgb')) { const m = c.match(/rgb\(\s*(\d+),\s*(\d+),\s*(\d+)\)/); return m ? [+m[1],+m[2],+m[3],1] : [0,0,0,1]; }
@@ -232,71 +216,86 @@ document.querySelectorAll('.legend').forEach(legend => {
     const r = Math.round(f[0]+(tt[0]-f[0])*t), g = Math.round(f[1]+(tt[1]-f[1])*t), b = Math.round(f[2]+(tt[2]-f[2])*t), a = f[3]+(tt[3]-f[3])*t;
     return `rgba(${r},${g},${b},${a})`;
   }
+  function lerp(a, b, t) { return a + (b - a) * t; }
 
-  function clearHoverState() {
-    const prevIdx = hoveredIdx;
-    hoveredIdx = -1;
-    // Snapshot current state
+  // General animated transition: snapshot -> target over duration ms
+  function animateTransition(targetState, duration, fillsArg) {
+    if (fadeAnim) { cancelAnimationFrame(fadeAnim); fadeAnim = null; }
+    // Snapshot
     const fromBg = chartInstance.data.datasets.map(ds => ds.backgroundColor);
     const fromBorder = chartInstance.data.datasets.map(ds => ds.borderColor);
     const fromWidth = chartInstance.data.datasets.map(ds => ds.borderWidth);
     const fromDots = [];
-    items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); fromDots.push(d ? d.style.backgroundColor : dotColors[i]); });
-    // Target state
-    const toBg = originalBgColors.slice();
-    const toBorder = originalBorderColors.slice();
-    const toWidth = originalBgColors.map(() => 1.5);
-    const toDots = dotColors.slice();
+    items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); fromDots.push(d ? d.style.backgroundColor || dotColors[i] : dotColors[i]); });
+    // Apply fills/hidden immediately so scale recalculates
+    if (fillsArg !== undefined) recalcFills(fillsArg);
+    // Set text colors immediately (instant)
+    targetState.textColors.forEach((c, i) => { items[i].style.color = c; });
 
-    recalcFills(null);
-    items.forEach((it) => { it.style.color = ''; });
+    if (duration === 0) {
+      // Instant
+      chartInstance.data.datasets.forEach((ds, i) => {
+        ds.backgroundColor = targetState.bg[i]; ds.borderColor = targetState.border[i]; ds.borderWidth = targetState.width[i];
+      });
+      chartInstance.update('none');
+      items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); if (d) d.style.backgroundColor = targetState.dots[i]; });
+      return;
+    }
 
-    const duration = 700;
     const start = performance.now();
-    if (fadeAnim) cancelAnimationFrame(fadeAnim);
     function step(now) {
       let t = Math.min((now - start) / duration, 1);
       t = 1 - Math.pow(1 - t, 3); // easeOutCubic
       chartInstance.data.datasets.forEach((ds, i) => {
-        ds.backgroundColor = lerpColor(fromBg[i], toBg[i], t);
-        ds.borderColor = lerpColor(fromBorder[i], toBorder[i], t);
-        ds.borderWidth = fromWidth[i] + (toWidth[i] - fromWidth[i]) * t;
+        ds.backgroundColor = lerpColor(fromBg[i], targetState.bg[i], t);
+        ds.borderColor = lerpColor(fromBorder[i], targetState.border[i], t);
+        ds.borderWidth = lerp(fromWidth[i], targetState.width[i], t);
       });
       chartInstance.update('none');
-      items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); if (d) d.style.backgroundColor = lerpColor(fromDots[i], toDots[i], t); });
+      items.forEach((it, i) => { const d = it.querySelector('.legend-dot'); if (d) d.style.backgroundColor = lerpColor(fromDots[i], targetState.dots[i], t); });
       if (t < 1) fadeAnim = requestAnimationFrame(step);
       else fadeAnim = null;
     }
     fadeAnim = requestAnimationFrame(step);
   }
 
+  function applyHoverState(hIdx) {
+    hoveredIdx = hIdx;
+    const bg = [], border = [], width = [], dots = [], text = [];
+    originalBgColors.forEach((c, i) => {
+      if (i === hIdx) { bg.push(c); border.push(originalBorderColors[i]); width.push(4); dots.push(dotColors[i]); text.push('rgba(0,0,0,.7)'); }
+      else { bg.push(setOpacity(c, 0.15)); border.push(setOpacity(originalBorderColors[i], 0.3)); width.push(1); dots.push(setOpacity(dotColors[i], 0.3)); text.push('rgba(0,0,0,.3)'); }
+    });
+    animateTransition({bg, border, width, dots, textColors: text}, 300, null);
+  }
+
+  function clearHoverState() {
+    hoveredIdx = -1;
+    const bg = originalBgColors.slice();
+    const border = originalBorderColors.slice();
+    const width = bg.map(() => 1.5);
+    const dots = dotColors.slice();
+    const text = dotColors.map(() => '');
+    animateTransition({bg, border, width, dots, textColors: text}, 700, null);
+  }
+
   function isSelected(i) { if (selectedSet.size > 0) return selectedSet.has(i); if (selectedIdx >= 0) return i === selectedIdx; return false; }
   function hasSelection() { return selectedIdx >= 0 || selectedSet.size > 0 || emptySelection; }
 
-  function applyLegendStyles() {
-    items.forEach((it, i) => {
-      const dot = it.querySelector('.legend-dot');
-      if (hasSelection()) {
-        if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (dot) { dot.style.backgroundColor = dotColors[i]; dot.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.3)'; if (dot) { dot.style.backgroundColor = 'rgba(0,0,0,.15)'; dot.style.opacity = ''; } }
-      } else { it.style.color = ''; if (dot) { dot.style.backgroundColor = dotColors[i]; dot.style.opacity = ''; } }
-    });
-  }
-
-  function applySelected() {
+  function applySelected(duration) {
+    const dur = duration !== undefined ? duration : 300;
+    const bg = [], border = [], width = [], dots = [], text = [];
+    let vis = null;
     if (hasSelection()) {
-      const vis = new Set();
-      chartInstance.data.datasets.forEach((ds, i) => {
-        if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-        else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+      vis = new Set();
+      originalBgColors.forEach((c, i) => {
+        if (isSelected(i)) { bg.push(c); border.push(originalBorderColors[i]); width.push(2); dots.push(dotColors[i]); text.push('rgba(0,0,0,.5)'); vis.add(i); }
+        else { bg.push(setOpacity(c, 0)); border.push(setOpacity(originalBorderColors[i], 0)); width.push(0); dots.push('rgba(0,0,0,.15)'); text.push('rgba(0,0,0,.3)'); }
       });
-      recalcFills(vis);
     } else {
-      chartInstance.data.datasets.forEach((ds, i) => { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; });
-      recalcFills(null);
+      originalBgColors.forEach((c, i) => { bg.push(c); border.push(originalBorderColors[i]); width.push(1.5); dots.push(dotColors[i]); text.push(''); });
     }
-    applyLegendStyles();
-    chartInstance.update('none');
+    animateTransition({bg, border, width, dots, textColors: text}, dur, vis);
   }
 
   let cmdDown = false;
@@ -316,79 +315,57 @@ document.querySelectorAll('.legend').forEach(legend => {
       else applyInverseHover(idx);
     } else {
       if (hasSelection()) {
-        applyLegendStyles();
-        const dot = item.querySelector('.legend-dot');
-        item.style.color = 'rgba(0,0,0,.7)';
         if (emptySelection) {
-          if (dot) { dot.style.backgroundColor = dotColors[idx]; dot.style.opacity = '1'; }
-          const vis = new Set([idx]);
-          chartInstance.data.datasets.forEach((ds, i) => {
-            if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; }
-            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+          const bg=[],br=[],w=[],d=[],t=[];
+          const vis=new Set([idx]);
+          originalBgColors.forEach((c,i)=>{
+            if(i===idx){bg.push(c);br.push(originalBorderColors[i]);w.push(2);d.push(dotColors[i]);t.push('rgba(0,0,0,.7)');}
+            else{bg.push(setOpacity(c,0));br.push(setOpacity(originalBorderColors[i],0));w.push(0);d.push('rgba(0,0,0,.15)');t.push('rgba(0,0,0,.3)');}
           });
-          recalcFills(vis); chartInstance.update('none');
-        } else if (isSelected(idx)) { applySelected(); }
+          animateTransition({bg,border:br,width:w,dots:d,textColors:t},0,vis);
+        } else if (isSelected(idx)) { applySelected(0); item.style.color='rgba(0,0,0,.7)'; }
         else {
-          // Inverse preview in reapplyHover
-          applyLegendStyles();
-          item.style.color = 'rgba(0,0,0,.4)';
-          const d = item.querySelector('.legend-dot');
-          if (d) { d.style.backgroundColor = setOpacity(dotColors[idx], 0.4); d.style.opacity = ''; }
-          const vis = new Set();
-          chartInstance.data.datasets.forEach((ds, i) => {
-            if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-            else if (i === idx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.3); ds.borderColor = setOpacity(originalBorderColors[i], 0.5); ds.borderWidth = 1.5; vis.add(i); }
-            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
+          const bg=[],br=[],w=[],d=[],t=[];
+          const vis=new Set();
+          originalBgColors.forEach((c,i)=>{
+            if(isSelected(i)){bg.push(c);br.push(originalBorderColors[i]);w.push(2);d.push(dotColors[i]);t.push('rgba(0,0,0,.5)');vis.add(i);}
+            else if(i===idx){bg.push(setOpacity(c,0.3));br.push(setOpacity(originalBorderColors[i],0.5));w.push(1.5);d.push(setOpacity(dotColors[idx],0.4));t.push('rgba(0,0,0,.4)');vis.add(i);}
+            else{bg.push(setOpacity(c,0));br.push(setOpacity(originalBorderColors[i],0));w.push(0);d.push('rgba(0,0,0,.15)');t.push('rgba(0,0,0,.3)');}
           });
-          recalcFills(vis); chartInstance.update('none');
+          animateTransition({bg,border:br,width:w,dots:d,textColors:t},0,vis);
         }
       } else applyHoverState(idx);
     }
   }
 
   function applyInverseHover(hIdx) {
+    const bg=[],br=[],w=[],d=[],t=[];
     if (hasSelection()) {
-      items.forEach((it, i) => {
-        const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
-        else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+      const vis=new Set();
+      originalBgColors.forEach((c,i)=>{
+        if(isSelected(i)&&i!==hIdx){bg.push(c);br.push(originalBorderColors[i]);w.push(2);d.push(dotColors[i]);t.push('rgba(0,0,0,.5)');vis.add(i);}
+        else if(i===hIdx){bg.push(setOpacity(c,0));br.push(setOpacity(originalBorderColors[i],0));w.push(0);d.push(setOpacity(dotColors[i],0.3));t.push('rgba(0,0,0,.3)');}
+        else{bg.push(setOpacity(c,0));br.push(setOpacity(originalBorderColors[i],0));w.push(0);d.push('rgba(0,0,0,.15)');t.push('rgba(0,0,0,.3)');}
       });
-      const vis = new Set();
-      chartInstance.data.datasets.forEach((ds, i) => {
-        if (isSelected(i) && i !== hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-        else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
-      });
-      recalcFills(vis);
+      animateTransition({bg,border:br,width:w,dots:d,textColors:t},0,vis);
     } else {
-      items.forEach((it, i) => {
-        const d = it.querySelector('.legend-dot');
-        if (i === hIdx) { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.3); d.style.opacity = ''; } }
-        else { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
+      originalBgColors.forEach((c,i)=>{
+        if(i===hIdx){bg.push(setOpacity(c,0.15));br.push(setOpacity(originalBorderColors[i],0.3));w.push(1);d.push(setOpacity(dotColors[i],0.3));t.push('rgba(0,0,0,.3)');}
+        else{bg.push(c);br.push(originalBorderColors[i]);w.push(1.5);d.push(dotColors[i]);t.push('rgba(0,0,0,.7)');}
       });
-      chartInstance.data.datasets.forEach((ds, i) => {
-        if (i === hIdx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.15); ds.borderColor = setOpacity(originalBorderColors[i], 0.3); ds.borderWidth = 1; }
-        else { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 1.5; }
-      });
-      recalcFills(null);
+      animateTransition({bg,border:br,width:w,dots:d,textColors:t},0,null);
     }
-    chartInstance.update('none');
   }
 
   function applySelectedHoverNormal(hIdx) {
-    items.forEach((it, i) => {
-      const d = it.querySelector('.legend-dot');
-      if (i === hIdx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-      else if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-      else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+    const bg=[],br=[],w=[],d=[],t=[];
+    const vis=new Set();
+    originalBgColors.forEach((c,i)=>{
+      if(isSelected(i)||i===hIdx){bg.push(c);br.push(originalBorderColors[i]);w.push(2);d.push(dotColors[i]);vis.add(i);
+        t.push(i===hIdx?'rgba(0,0,0,.7)':'rgba(0,0,0,.5)');}
+      else{bg.push(setOpacity(c,0));br.push(setOpacity(originalBorderColors[i],0));w.push(0);d.push('rgba(0,0,0,.15)');t.push('rgba(0,0,0,.3)');}
     });
-    const vis = new Set();
-    chartInstance.data.datasets.forEach((ds, i) => {
-      if (isSelected(i) || i === hIdx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-      else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
-    });
-    recalcFills(vis);
-    chartInstance.update('none');
+    animateTransition({bg,border:br,width:w,dots:d,textColors:t},0,vis);
   }
 
   items.forEach((item, idx) => {
@@ -405,42 +382,27 @@ document.querySelectorAll('.legend').forEach(legend => {
       if (hasSelection()) {
         if (emptySelection) {
           // Show only hovered
-          items.forEach((it, i) => {
-            const d = it.querySelector('.legend-dot');
-            if (i === idx) { it.style.color = 'rgba(0,0,0,.7)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+          const bg1=[], br1=[], w1=[], d1=[], t1=[];
+          const vis1 = new Set([idx]);
+          originalBgColors.forEach((c,i) => {
+            if (i===idx) { bg1.push(c); br1.push(originalBorderColors[i]); w1.push(2); d1.push(dotColors[i]); t1.push('rgba(0,0,0,.7)'); }
+            else { bg1.push(setOpacity(c,0)); br1.push(setOpacity(originalBorderColors[i],0)); w1.push(0); d1.push('rgba(0,0,0,.15)'); t1.push('rgba(0,0,0,.3)'); }
           });
-          const vis = new Set([idx]);
-          chartInstance.data.datasets.forEach((ds, i) => {
-            if (i === idx) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; }
-            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
-          });
-          recalcFills(vis); chartInstance.update('none');
+          animateTransition({bg:bg1,border:br1,width:w1,dots:d1,textColors:t1}, 0, vis1);
         } else if (isSelected(idx)) {
           // Hovering on selected: restore selected state, brighten text
-          applyLegendStyles();
-          const vis = new Set();
-          chartInstance.data.datasets.forEach((ds, i) => {
-            if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
-          });
-          recalcFills(vis); chartInstance.update('none');
+          applySelected(0);
           item.style.color = 'rgba(0,0,0,.7)';
         } else {
           // Inverse: selected stays full, hovered shows dimmed preview
-          items.forEach((it, i) => {
-            const d = it.querySelector('.legend-dot');
-            if (isSelected(i)) { it.style.color = 'rgba(0,0,0,.5)'; if (d) { d.style.backgroundColor = dotColors[i]; d.style.opacity = ''; } }
-            else if (i === idx) { it.style.color = 'rgba(0,0,0,.4)'; if (d) { d.style.backgroundColor = setOpacity(dotColors[i], 0.4); d.style.opacity = ''; } }
-            else { it.style.color = 'rgba(0,0,0,.3)'; if (d) { d.style.backgroundColor = 'rgba(0,0,0,.15)'; d.style.opacity = ''; } }
+          const bg2=[], br2=[], w2=[], d2=[], t2=[];
+          const vis2 = new Set();
+          originalBgColors.forEach((c,i) => {
+            if (isSelected(i)) { bg2.push(c); br2.push(originalBorderColors[i]); w2.push(2); d2.push(dotColors[i]); t2.push('rgba(0,0,0,.5)'); vis2.add(i); }
+            else if (i===idx) { bg2.push(setOpacity(c,0.3)); br2.push(setOpacity(originalBorderColors[i],0.5)); w2.push(1.5); d2.push(setOpacity(dotColors[i],0.4)); t2.push('rgba(0,0,0,.4)'); vis2.add(i); }
+            else { bg2.push(setOpacity(c,0)); br2.push(setOpacity(originalBorderColors[i],0)); w2.push(0); d2.push('rgba(0,0,0,.15)'); t2.push('rgba(0,0,0,.3)'); }
           });
-          const vis = new Set();
-          chartInstance.data.datasets.forEach((ds, i) => {
-            if (isSelected(i)) { ds.backgroundColor = originalBgColors[i]; ds.borderColor = originalBorderColors[i]; ds.borderWidth = 2; vis.add(i); }
-            else if (i === idx) { ds.backgroundColor = setOpacity(originalBgColors[i], 0.3); ds.borderColor = setOpacity(originalBorderColors[i], 0.5); ds.borderWidth = 1.5; vis.add(i); }
-            else { ds.backgroundColor = setOpacity(originalBgColors[i], 0); ds.borderColor = setOpacity(originalBorderColors[i], 0); ds.borderWidth = 0; }
-          });
-          recalcFills(vis); chartInstance.update('none');
+          animateTransition({bg:bg2,border:br2,width:w2,dots:d2,textColors:t2}, 0, vis2);
         }
         return;
       }
@@ -453,7 +415,7 @@ document.querySelectorAll('.legend').forEach(legend => {
         if (currentHoverIdx >= 0) return;
         hoveredIdx = -1;
         if (hasSelection()) {
-          applyLegendStyles(); applySelected();
+          applySelected(0);
         } else {
           clearHoverState();
         }
